@@ -1,0 +1,62 @@
+#!/bin/bash -e
+
+## SYNOPSIS
+##
+##     ebs-auto-filesystem DEVICE [DEVICE ...]
+##
+## DESCRIPTION
+##
+##     Automatically partition and mount a newly-attached EBS volume. This
+##     program will create a partition on the device, if none exists, and
+##     attempt to mount it. The new partition may be labelled by setting the
+##     EBS_LABEL environment variable, in which case it will be mounted by
+##     label; otherwise, it will be mounted by device name.
+##
+##     This program is intended to be invoked by udevd rules.
+
+has-filesystem() {
+  local DEVICE="$1"
+
+  fsck -n "$DEVICE"
+}
+
+make-filesystem() {
+  local DEVICE="$1"
+  local LABEL_OPT=
+  [ ! -z "$EBS_LABEL" ] && LABEL_OPT="-L $EBS_LABEL"
+
+  mkfs -t ext4 $LABEL_OPT "$DEVICE"
+}
+
+mount-filesystem() {
+  local DEVICE="$1"
+  local MOUNT="$DEVICE"
+  [ ! -z "$EBS_LABEL" ] && MOUNT="LABEL=$EBS_LABEL"
+
+  # Failures to mount are acceptable - it either means it's already mounted or
+  # that fstab doesn't contain a matching entry.
+  mount "$MOUNT" || true
+}
+
+auto-mount() {
+  local DEVICE="$1"
+
+  if ! has-filesystem "$DEVICE"; then
+    make-filesystem "$DEVICE"
+  fi
+
+  mount-filesystem "$DEVICE"
+}
+
+auto-mount-partitions() {
+  local DEVICE="$1"
+
+  for PARTITION in "$DEVICE"n*; do
+    auto-mount "$PARTITION"
+  done
+}
+
+while [ $# -gt 0 ]; do
+  auto-mount-partitions "$1" >& /dev/null
+  shift
+done

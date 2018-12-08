@@ -1,0 +1,1 @@
+ACTION=="add" SUBSYSTEM=="nvme"  ENV{EBS_LABEL}="znc" RUN="/usr/local/sbin/grab-device %k"

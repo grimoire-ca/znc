@@ -1,0 +1,69 @@
+#cloud-config
+
+users:
+  - default
+  - name: znc
+    gecos: ZNC IRC Bouncer
+    system: true
+
+write_files:
+  - content: ${ebs_auto_filesystem}
+    encoding: b64
+    path: /usr/local/sbin/ebs-auto-filesystem
+    owner: root:root
+    permissions: '0755'
+  - content: ${initialize_znc}
+    encoding: b64
+    path: /usr/local/sbin/initialize-znc
+    owner: root:root
+    permissions: '0755'
+  - content: ${make_znc_bundle}
+    encoding: b64
+    path: /usr/local/sbin/make-znc-bundle
+    owner: root:root
+    permissions: '0755'
+  - content: ${auto_partition_rules}
+    encoding: b64
+    path: /etc/udev/rules.d/10-auto-partition.rules
+    owner: root:root
+    permissions: '0755'
+  - content: ${znc_service}
+    encoding: b64
+    path: /etc/systemd/system/znc.service
+    owner: root:root
+    permissions: '0644'
+  - content: ${znc_cert_hook}
+    encoding: b64
+    path: /etc/letsencrypt/renewal-hooks/deploy/znc
+    owner: root:root
+    permissions: '0755'
+
+mounts:
+  - [ "LABEL=znc", "/mnt/znc", "auto" ]
+
+hostname: ${hostname}
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+packages:
+  - znc
+  - certbot
+
+# This is such an enormous hack.
+#
+# The EBS volume for ZNC's data gets attached too late for the fs_setup
+# cloud-init data to correctly configure it. However, it's also regularly
+# attached too early for the udevd rule created above to catch it. This triggers
+# the same script the udevd rule triggers, on the most likely name of the EBS
+# volume, manually.
+#
+# Since the script is idempotent, this is fine - just fugly.
+runcmd:
+  - EBS_LABEL=znc ebs-auto-filesystem /dev/nvme1 /dev/nvme0
+  - initialize-znc
+  - certbot certonly --non-interactive --authenticator standalone --agree-tos -m hostmaster@grimoire.ca --domain znc.grimoire.ca --keep
+  - make-znc-bundle
+  - systemctl enable znc.service
+  - systemctl start --no-block znc.service

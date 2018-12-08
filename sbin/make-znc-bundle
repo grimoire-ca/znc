@@ -1,0 +1,4 @@
+#!/bin/bash -e
+YOURDOMAIN="znc.grimoire.ca"
+
+cat /etc/letsencrypt/live/"$YOURDOMAIN"/{privkey,fullchain}.pem > /var/lib/znc/znc.pem

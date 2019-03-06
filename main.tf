@@ -47,6 +47,10 @@ resource "aws_instance" "znc" {
   subnet_id = "${data.terraform_remote_state.network.subnet_id}"
 
   user_data = "${data.template_file.user_data.rendered}"
+
+  tags {
+    Project = "znc"
+  }
 }
 
 resource "aws_volume_attachment" "znc" {

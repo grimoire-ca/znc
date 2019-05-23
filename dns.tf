@@ -1,7 +1,7 @@
 data "terraform_remote_state" "dns" {
   backend = "s3"
 
-  config {
+  config = {
     bucket = "terraform.grimoire"
     key    = "dns.tfstate"
     region = "ca-central-1"
@@ -9,17 +9,18 @@ data "terraform_remote_state" "dns" {
 }
 
 resource "aws_route53_record" "znc_ip4" {
-  zone_id = "${data.terraform_remote_state.dns.grimoire_ca_zone_id}"
+  zone_id = data.terraform_remote_state.dns.outputs.grimoire_ca_zone_id
   name    = "znc"
   type    = "A"
   ttl     = "300"
-  records = ["${aws_instance.znc.public_ip}"]
+  records = [aws_instance.znc.public_ip]
 }
 
 resource "aws_route53_record" "znc_ip6" {
-  zone_id = "${data.terraform_remote_state.dns.grimoire_ca_zone_id}"
+  zone_id = data.terraform_remote_state.dns.outputs.grimoire_ca_zone_id
   name    = "znc"
   type    = "AAAA"
   ttl     = "300"
-  records = ["${aws_instance.znc.ipv6_addresses}"]
+  records = aws_instance.znc.ipv6_addresses
 }
+
